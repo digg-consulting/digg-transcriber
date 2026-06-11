@@ -94,7 +94,7 @@ uv sync
 
 echo "==> Installing CLI on PATH (uv tool install)..."
 uv tool uninstall "${CLI_NAME}" 2>/dev/null || true
-uv tool install -e .
+uv tool install --force -e .
 if [[ ! -x "${CLI_BIN}" ]]; then
     echo "Expected executable at ${CLI_BIN} after uv tool install" >&2
     exit 1

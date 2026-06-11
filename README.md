@@ -13,27 +13,23 @@ Universal transcription tool for video, audio, and podcast sources.
 
 ## Installation
 
-**Option A: Clone the repository**
+One-liner (recommended):
 
 ```bash
-git clone https://github.com/digg-consulting/digg-transcriber.git
-cd digg-transcriber
-pip install -e .
+curl -fsSL https://raw.githubusercontent.com/digg-consulting/digg-transcriber/main/install.sh | bash
 ```
 
-**Option B: Download and install**
+Or download and run:
 
 ```bash
-curl -sSL https://github.com/digg-consulting/digg-transcriber/archive/refs/heads/main.tar.gz | tar xz
-cd digg-transcriber-main
-pip install -e .
+curl -fsSL https://raw.githubusercontent.com/digg-consulting/digg-transcriber/main/install.sh -o install.sh
+bash install.sh
 ```
 
-Then run the setup script:
-
-```bash
-./install.sh
-```
+The installer will:
+1. Download the source to `~/.local/share/digg/digg-transcriber`
+2. Create a `digg-transcriber` wrapper in `~/.local/bin`
+3. Set up XDG config and HuggingFace cache directories
 
 ## Quick Start
 

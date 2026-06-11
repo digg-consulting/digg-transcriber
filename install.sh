@@ -1,44 +1,88 @@
 #!/bin/bash
-# install.sh - XDG-compliant installation for digg-transcriber
+# install.sh - Standalone installer for digg-transcriber
+# Usage: curl -fsSL https://raw.githubusercontent.com/digg-consulting/digg-transcriber/main/install.sh | bash
+#   or: bash install.sh  (from a cloned checkout)
 
-set -e
+set -euo pipefail
 
-# Set XDG directories
-XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-XDG_CACHE_HOME="${XDG_CACHE_HOME:-$HOME/.cache}"
-XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
+REPO="digg-consulting/digg-transcriber"
+BRANCH="main"
+INSTALL_DIR="${HOME}/.local/share/digg/digg-transcriber"
+BIN_DIR="${HOME}/.local/bin"
+CONFIG_DIR="${HOME}/.config/digg/digg-transcriber"
 
-# Create directories
-mkdir -p "$XDG_CONFIG_HOME/digg/digg-transcriber"
-mkdir -p "$XDG_CACHE_HOME/digg/digg-transcriber/huggingface"
-mkdir -p "$XDG_DATA_HOME/digg/digg-transcriber"
-mkdir -p "$HOME/.local/bin"
+# XDG directories
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
+XDG_CACHE_HOME="${XDG_CACHE_HOME:-${HOME}/.cache}"
+XDG_DATA_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}"
 
-echo "Created XDG directories:"
-echo "  Config: $XDG_CONFIG_HOME/digg/digg-transcriber"
-echo "  Cache:  $XDG_CACHE_HOME/digg/digg-transcriber"
-echo "  Data:   $XDG_DATA_HOME/digg/digg-transcriber"
+CONFIG_DIR="${XDG_CONFIG_HOME}/digg/digg-transcriber"
+HF_HOME="${XDG_CACHE_HOME}/digg/digg-transcriber/huggingface"
+HF_HUB_CACHE="${HF_HOME}/hub"
+
+echo "==> Installing digg-transcriber..."
+echo "    Install dir: ${INSTALL_DIR}"
+echo "    Config dir:  ${CONFIG_DIR}"
+
+# Check for required tools
+for cmd in git pip python3; do
+    if ! command -v "$cmd" &>/dev/null; then
+        echo "Error: '$cmd' is required but not found in PATH." >&2
+        exit 1
+    fi
+done
+
+# Clone or update the repository
+if [ -d "${INSTALL_DIR}/.git" ]; then
+    echo "==> Updating existing installation..."
+    git -C "${INSTALL_DIR}" fetch origin
+    git -C "${INSTALL_DIR}" checkout "${BRANCH}"
+    git -C "${INSTALL_DIR}" pull --ff-only origin "${BRANCH}"
+else
+    echo "==> Cloning repository..."
+    mkdir -p "$(dirname "${INSTALL_DIR}")"
+    git clone --branch "${BRANCH}" --depth 1 "https://github.com/${REPO}.git" "${INSTALL_DIR}"
+fi
 
 # Install the package
+echo "==> Installing Python package..."
+pip install --user --upgrade "${INSTALL_DIR}"
+
+# Create XDG directories
+mkdir -p "${CONFIG_DIR}"
+mkdir -p "${HF_HOME}"
+mkdir -p "${BIN_DIR}"
+
+# Create wrapper script
+WRAPPER="${BIN_DIR}/digg-transcriber"
+if [ ! -f "${WRAPPER}" ] || [ "$(head -n1 "${WRAPPER}")" != "#!/usr/bin/env bash" ]; then
+    echo "==> Creating wrapper script at ${WRAPPER}"
+    cat > "${WRAPPER}" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+export HF_HOME="${XDG_CACHE_HOME:-$HOME/.cache}/digg/digg-transcriber/huggingface"
+export HF_HUB_CACHE="${HF_HOME}/hub"
+export PATH="${HOME}/.local/bin:${PATH}"
+
+exec python3 -m digg_transcriber.cli "$@"
+EOF
+    chmod +x "${WRAPPER}"
+fi
+
+# Ensure PATH includes local bin
+if ! echo "${PATH}" | grep -q "${BIN_DIR}"; then
+    echo ""
+    echo "Add this line to your shell config (~/.bashrc, ~/.zshrc, etc.):"
+    echo "  export PATH=\"${BIN_DIR}:\${PATH}\""
+fi
+
 echo ""
-echo "Installing digg-transcriber..."
-pip install -e .
-
-# Set up environment
-export HF_HOME="$XDG_CACHE_HOME/digg/digg-transcriber/huggingface"
-export HF_HUB_CACHE="$XDG_CACHE_HOME/digg/digg-transcriber/huggingface/hub"
-export PATH="$HOME/.local/bin:$PATH"
-
+echo "==> Installation complete!"
 echo ""
-echo "Environment variables to set in your shell config:"
-echo "  export HF_HOME=\"$XDG_CACHE_HOME/digg/digg-transcriber/huggingface\""
-echo "  export HF_HUB_CACHE=\"$XDG_CACHE_HOME/digg/digg-transcriber/huggingface/hub\""
-
-# Create default config
-digg-transcriber init
-
+echo "Next steps:"
+echo "  1. Run 'digg-transcriber init' to create your config"
+echo "  2. Download a Whisper model (see docs/HUGGINGFACE.md)"
+echo "  3. Run 'digg-transcriber check --model medium' to verify"
 echo ""
-echo "Installation complete. Download a Whisper model to get started:"
-echo "  hf auth login"
-echo "  hf download mlx-community/whisper-medium-mlx --include \"config.json\" --include \"weights.npz\""
-echo "  digg-transcriber check --model medium"
+echo "Documentation: https://github.com/${REPO}"

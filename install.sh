@@ -59,6 +59,15 @@ mkdir -p "${CONFIG_DIR}"
 mkdir -p "${HF_HOME}"
 mkdir -p "${BIN_DIR}"
 
+# Install Python dependencies
+echo "==> Installing Python dependencies..."
+if [ -f "${INSTALL_DIR}/requirements.txt" ]; then
+    pip3 install --user --upgrade -r "${INSTALL_DIR}/requirements.txt"
+else
+    # Fallback: install core deps directly
+    pip3 install --user --upgrade requests feedparser pyyaml watchdog mlx-whisper faster-whisper
+fi
+
 # Create wrapper script
 WRAPPER="${BIN_DIR}/digg-transcriber"
 if [ ! -f "${WRAPPER}" ] || ! grep -q "digg-transcriber wrapper" "${WRAPPER}" 2>/dev/null; then

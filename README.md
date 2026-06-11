@@ -13,17 +13,8 @@ Universal transcription tool for video, audio, and podcast sources.
 
 ## Installation
 
-One-liner (recommended):
-
 ```bash
 curl -fsSL https://raw.githubusercontent.com/digg-consulting/digg-transcriber/main/install.sh | bash
-```
-
-Or download and run:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/digg-consulting/digg-transcriber/main/install.sh -o install.sh
-bash install.sh
 ```
 
 The installer will:

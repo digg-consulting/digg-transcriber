@@ -24,7 +24,7 @@ CLI_NAME = "digg-transcriber"
 
 
 def cmd_init(args: argparse.Namespace) -> int:
-    path, created = write_default_config()
+    path, created = write_default_config(force=args.force)
     if created:
         print(f"Created config: {path}")
         print("Edit this file to configure your paths and model.")

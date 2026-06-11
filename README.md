@@ -22,6 +22,14 @@ The installer will:
 2. Create a `digg-transcriber` wrapper in `~/.local/bin`
 3. Set up XDG config and HuggingFace cache directories
 
+## Uninstall
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/digg-consulting/digg-transcriber/main/uninstall.sh | bash
+```
+
+This removes the installed source, wrapper script, and optionally your config directory. Python dependencies and downloaded models are preserved unless you choose to remove them manually.
+
 ## Quick Start
 
 ```bash

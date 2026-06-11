@@ -34,12 +34,15 @@ done
 if [ -d "${INSTALL_DIR}" ] && [ -f "${INSTALL_DIR}/src/digg_transcriber/cli.py" ]; then
     echo "==> Existing installation found at ${INSTALL_DIR}"
     if [ "${FORCE_INSTALL:-0}" != "1" ]; then
-        echo ""
-        read -p "Overwrite existing installation? [y/N] " -n 1 -r
-        echo ""
-        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo "Installation cancelled. Existing installation left intact."
-            exit 0
+        if [ -t 0 ]; then
+            read -p "Overwrite existing installation? [y/N] " -n 1 -r
+            echo
+            if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+                echo "Installation cancelled. Existing installation left intact."
+                exit 0
+            fi
+        else
+            echo "Non-interactive mode detected. Proceeding with reinstall (remove ${INSTALL_DIR})."
         fi
     fi
     echo "==> Removing old installation..."

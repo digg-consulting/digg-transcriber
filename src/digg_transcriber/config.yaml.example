@@ -1,0 +1,48 @@
+# digg-transcriber — user config, preferences, and settings
+# Install:  digg-transcriber init
+# Directory: ~/.config/digg/digg-transcriber/
+# Override: export DIGG_TRANSCRIBER_CONFIG=/path/to/config.yaml
+#
+# Models must be pre-downloaded with the Hugging Face CLI.
+# Full steps: docs/HUGGINGFACE.md
+
+# Whisper model:
+#   medium, large-v3 (mlx-whisper on macOS)
+#   medium, large-v3 (faster-whisper on other platforms)
+model: medium
+
+# auto, or ISO 639-1 code (en, fr, …)
+language: auto
+
+# archive — each source gets a folder under output_dir with transcripts
+# beside — outputs next to the source (source stays in place)
+# mirror — under output_dir, mirroring input directory tree
+# flat   — all transcript files directly in output_dir (no per-source folders)
+output_mode: archive
+output_dir: ~/Transcripts
+
+# Output formats: vtt, srt, txt, json
+formats:
+  - vtt
+  - txt
+
+watch:
+  # Folders monitored by: digg-transcriber watch
+  paths:
+    - ~/Movies
+  debounce_seconds: 2
+  extensions:
+    - .mp4
+    - .mov
+    - .avi
+    - .mkv
+    - .mp3
+    - .m4a
+    - .wav
+    - .flac
+
+podcast:
+  # Podcast Index API credentials (for search feature)
+  # Get free credentials at https://podcastindex.org
+  podcast_index_api_key: ""
+  podcast_index_api_secret: ""

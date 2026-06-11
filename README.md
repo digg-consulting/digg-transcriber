@@ -20,7 +20,8 @@ curl -fsSL https://raw.githubusercontent.com/digg-consulting/digg-transcriber/ma
 The installer will:
 1. Download the source to `~/.local/share/digg/digg-transcriber`
 2. Create a `digg-transcriber` wrapper in `~/.local/bin`
-3. Set up XDG config and HuggingFace cache directories
+3. Set up XDG config directory
+4. Verify your HuggingFace model cache at `~/.cache/huggingface`
 
 ## Quick Start
 

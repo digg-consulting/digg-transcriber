@@ -1,5 +1,15 @@
 # Hugging Face Model Setup for digg-transcriber
 
+## Cache Location
+
+Models are stored in the system Hugging Face cache:
+
+```
+~/.cache/huggingface/hub/
+```
+
+This is the standard location used by the Hugging Face CLI and other tools. No app-specific override is needed.
+
 ## Prerequisites
 
 Install the Hugging Face CLI:
@@ -51,3 +61,5 @@ huggingface-cli download Systran/faster-whisper-medium
 ```bash
 digg-transcriber check --model medium
 ```
+
+The installer will also run this check and report whether the model cache is ready.

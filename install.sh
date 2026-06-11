@@ -16,8 +16,8 @@ XDG_CACHE_HOME="${XDG_CACHE_HOME:-${HOME}/.cache}"
 XDG_DATA_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}"
 
 CONFIG_DIR="${XDG_CONFIG_HOME}/digg/digg-transcriber"
-HF_HOME="${XDG_CACHE_HOME}/digg/digg-transcriber/huggingface"
-HF_HUB_CACHE="${HF_HOME}/hub"
+HF_HOME="${HF_HOME:-${XDG_CACHE_HOME}/huggingface}"
+HF_HUB_CACHE="${HF_HUB_CACHE:-${HF_HOME}/hub}"
 UV_TOOL_DIR="${XDG_DATA_HOME}/digg/digg-transcriber/tool"
 
 export XDG_CONFIG_HOME
@@ -101,6 +101,9 @@ if [[ ! -x "${CLI_BIN}" ]]; then
 fi
 
 echo "    ${CLI_BIN}"
+
+echo "==> Checking HuggingFace model cache..."
+"${CLI_BIN}" check --model medium || true
 
 echo ""
 echo "==> Installation complete!"

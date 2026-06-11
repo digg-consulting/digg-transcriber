@@ -55,7 +55,7 @@ def legacy_config_path() -> Path:
 
 
 def dt_hf_home_dir() -> Path:
-    return dt_cache_dir() / "huggingface"
+    return _home() / ".cache" / "huggingface"
 
 
 def dt_hf_hub_cache_dir() -> Path:

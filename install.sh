@@ -30,6 +30,22 @@ for cmd in curl tar python3; do
     fi
 done
 
+# Check for existing installation
+if [ -d "${INSTALL_DIR}" ] && [ -f "${INSTALL_DIR}/src/digg_transcriber/cli.py" ]; then
+    echo "==> Existing installation found at ${INSTALL_DIR}"
+    if [ "${FORCE_INSTALL:-0}" != "1" ]; then
+        echo ""
+        read -p "Overwrite existing installation? [y/N] " -n 1 -r
+        echo ""
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+            echo "Installation cancelled. Existing installation left intact."
+            exit 0
+        fi
+    fi
+    echo "==> Removing old installation..."
+    rm -rf "${INSTALL_DIR}"
+fi
+
 # Download and extract the source tarball
 mkdir -p "${INSTALL_PARENT}"
 

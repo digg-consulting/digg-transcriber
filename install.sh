@@ -13,17 +13,30 @@ BIN_DIR="${HOME}/.local/bin"
 # XDG directories
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
 XDG_CACHE_HOME="${XDG_CACHE_HOME:-${HOME}/.cache}"
+XDG_DATA_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}"
 
 CONFIG_DIR="${XDG_CONFIG_HOME}/digg/digg-transcriber"
 HF_HOME="${XDG_CACHE_HOME}/digg/digg-transcriber/huggingface"
 HF_HUB_CACHE="${HF_HOME}/hub"
+UV_TOOL_DIR="${XDG_DATA_HOME}/digg/digg-transcriber/tool"
+
+export XDG_CONFIG_HOME
+export XDG_CACHE_HOME
+export XDG_DATA_HOME
+export HF_HOME
+export HF_HUB_CACHE
+export UV_TOOL_DIR
+export PATH="${HOME}/.local/bin:${PATH}"
+
+CLI_NAME="digg-transcriber"
+CLI_BIN="${BIN_DIR}/${CLI_NAME}"
 
 echo "==> Installing digg-transcriber..."
 echo "    Install dir: ${INSTALL_DIR}"
 echo "    Config dir:  ${CONFIG_DIR}"
 
 # Check for required tools
-for cmd in curl tar python3; do
+for cmd in curl tar python3 uv; do
     if ! command -v "$cmd" &>/dev/null; then
         echo "Error: '$cmd' is required but not found in PATH." >&2
         exit 1
@@ -60,64 +73,41 @@ echo "==> Extracting..."
 tar -xzf "${TMP_TARBALL}" -C "${INSTALL_PARENT}"
 rm -f "${TMP_TARBALL}"
 
-# GitHub tarballs extract to REPO-BRANCH (e.g. digg-transcriber-main)
 EXTRACTED_DIR="$(find "${INSTALL_PARENT}" -maxdepth 1 -type d -name "${REPO##*/}-*" | head -n 1)"
 if [ -z "$EXTRACTED_DIR" ] || [ ! -d "$EXTRACTED_DIR" ]; then
     echo "Error: could not find extracted directory." >&2
     exit 1
 fi
 
-# Move into place (idempotent)
-if [ -d "${INSTALL_DIR}" ]; then
-    rm -rf "${INSTALL_DIR}"
-fi
 mv "${EXTRACTED_DIR}" "${INSTALL_DIR}"
 
 # Create XDG directories
 mkdir -p "${CONFIG_DIR}"
 mkdir -p "${HF_HOME}"
 mkdir -p "${BIN_DIR}"
+mkdir -p "${UV_TOOL_DIR}"
 
-# Install Python dependencies
-echo "==> Installing Python dependencies..."
-if [ -f "${INSTALL_DIR}/requirements.txt" ]; then
-    pip3 install --user --upgrade -r "${INSTALL_DIR}/requirements.txt"
-else
-    # Fallback: install core deps directly
-    pip3 install --user --upgrade requests feedparser pyyaml watchdog mlx-whisper faster-whisper
+cd "${INSTALL_DIR}"
+
+echo "==> Installing Python dependencies (uv sync)..."
+uv sync
+
+echo "==> Installing CLI on PATH (uv tool install)..."
+uv tool uninstall "${CLI_NAME}" 2>/dev/null || true
+uv tool install -e .
+if [[ ! -x "${CLI_BIN}" ]]; then
+    echo "Expected executable at ${CLI_BIN} after uv tool install" >&2
+    exit 1
 fi
 
-# Create wrapper script
-WRAPPER="${BIN_DIR}/digg-transcriber"
-if [ ! -f "${WRAPPER}" ] || ! grep -q "digg-transcriber wrapper" "${WRAPPER}" 2>/dev/null; then
-    echo "==> Creating wrapper script at ${WRAPPER}"
-    cat > "${WRAPPER}" <<EOF
-#!/usr/bin/env bash
-# digg-transcriber wrapper
-set -euo pipefail
-
-export HF_HOME="\${XDG_CACHE_HOME:-\$HOME/.cache}/digg/digg-transcriber/huggingface"
-export HF_HUB_CACHE="\${HF_HOME}/hub"
-export PYTHONPATH="${INSTALL_DIR}/src"
-
-exec python3 -m digg_transcriber.cli "\$@"
-EOF
-    chmod +x "${WRAPPER}"
-fi
-
-# Ensure PATH includes local bin
-if ! echo "${PATH}" | grep -q "${BIN_DIR}"; then
-    echo ""
-    echo "Add this line to your shell config (~/.bashrc, ~/.zshrc, etc.):"
-    echo "  export PATH=\"${BIN_DIR}:\${PATH}\""
-fi
+echo "    ${CLI_BIN}"
 
 echo ""
 echo "==> Installation complete!"
 echo ""
 echo "Next steps:"
 echo "  1. Restart your shell or run: source ~/.zshrc (or ~/.bashrc)"
-echo "  2. Run 'digg-transcriber init' to create your config"
+echo "  2. Run '${CLI_NAME} init' to create your config"
 echo "  3. See docs/HUGGINGFACE.md for model setup"
 echo ""
 echo "Documentation: https://github.com/${REPO}"

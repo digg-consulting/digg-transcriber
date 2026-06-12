@@ -55,15 +55,17 @@ def get_audio_url(entry: dict) -> Optional[str]:
     return None
 
 
-def fetch_episodes_from_rss(rss_url: str) -> list[dict]:
+def _fetch_feed(rss_url: str):
     import feedparser  # lazy import
     from digg_transcriber.http_client import get_http_session
 
     session = get_http_session()
     response = session.get(rss_url, timeout=30)
     response.raise_for_status()
-    feed = feedparser.parse(response.content)
+    return feedparser.parse(response.content)
 
+
+def _episodes_from_feed(feed) -> list[dict]:
     if feed.bozo and not feed.entries:
         return []
 
@@ -95,3 +97,20 @@ def fetch_episodes_from_rss(rss_url: str) -> list[dict]:
         })
 
     return episodes
+
+
+def fetch_podcast_metadata_from_rss(rss_url: str) -> dict:
+    feed = _fetch_feed(rss_url)
+    title = getattr(feed, "feed", {}).get("title", "")
+    return {
+        "title": str(title).strip(),
+        "episodes": _episodes_from_feed(feed),
+    }
+
+
+def fetch_podcast_title_from_rss(rss_url: str) -> str:
+    return fetch_podcast_metadata_from_rss(rss_url)["title"]
+
+
+def fetch_episodes_from_rss(rss_url: str) -> list[dict]:
+    return fetch_podcast_metadata_from_rss(rss_url)["episodes"]

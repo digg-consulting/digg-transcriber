@@ -132,6 +132,7 @@ class CoreTests(unittest.TestCase):
             patch("digg_transcriber.plugins.podcast.PodcastSource") as podcast_source_cls,
         ):
             podcast_source_cls.return_value.get_id.return_value = "podcast-id"
+            podcast_source_cls.return_value.get_podcast_title.return_value = "Example / Podcast"
             podcast_source_cls.return_value.get_title.return_value = "Episode / Title"
             podcast_source_cls.return_value.get_audio_url.return_value = "https://example.com/episode.mp3"
 
@@ -139,8 +140,9 @@ class CoreTests(unittest.TestCase):
 
         self.assertEqual(status, "ok")
         self.assertFalse((self.root / "episode.mp3").exists())
-        self.assertEqual((self.root / "out" / "Episode _ Title.txt").read_text(encoding="utf-8"), "Podcast\n")
-        mark_processed.assert_called_once_with("podcast-id", "podcast", "Episode / Title", self.root / "out" / "Episode _ Title.txt")
+        transcript_path = self.root / "out" / "Example _ Podcast" / "Episode _ Title" / "Episode _ Title.txt"
+        self.assertEqual(transcript_path.read_text(encoding="utf-8"), "Podcast\n")
+        mark_processed.assert_called_once_with("podcast-id", "podcast", "Episode / Title", transcript_path)
 
 
 if __name__ == "__main__":

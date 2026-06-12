@@ -6,7 +6,7 @@ import tempfile
 from pathlib import Path
 from typing import Optional
 
-from digg_transcriber.rss import fetch_episodes_from_rss
+from digg_transcriber.rss import fetch_podcast_metadata_from_rss
 
 
 class PodcastSource:
@@ -15,6 +15,12 @@ class PodcastSource:
         self.episode_guid = episode_guid
         self._episodes: list[dict] | None = None
         self._episode: dict | None = None
+        self._podcast_title: str | None = None
+
+    def get_podcast_title(self) -> str:
+        if self._podcast_title is None:
+            self._load_metadata()
+        return self._podcast_title
 
     def get_id(self) -> str:
         if self._episode is None:
@@ -44,9 +50,16 @@ class PodcastSource:
             return self._episode.get("description")
         return None
 
+    def _load_metadata(self) -> None:
+        if self._podcast_title is not None and self._episodes is not None:
+            return
+        metadata = fetch_podcast_metadata_from_rss(self.rss_url)
+        self._podcast_title = metadata["title"]
+        self._episodes = metadata["episodes"]
+
     def _load_episodes(self) -> None:
         if self._episodes is None:
-            self._episodes = fetch_episodes_from_rss(self.rss_url)
+            self._load_metadata()
         if self.episode_guid:
             for ep in self._episodes:
                 if ep["guid"] == self.episode_guid:
@@ -57,5 +70,5 @@ class PodcastSource:
 
     def get_episodes(self) -> list[dict]:
         if self._episodes is None:
-            self._episodes = fetch_episodes_from_rss(self.rss_url)
+            self._load_metadata()
         return self._episodes

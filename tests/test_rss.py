@@ -3,7 +3,7 @@ from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from digg_transcriber.rss import fetch_episodes_from_rss, get_audio_url, parse_duration, parse_published_date
+from digg_transcriber.rss import fetch_episodes_from_rss, fetch_podcast_metadata_from_rss, fetch_podcast_title_from_rss, get_audio_url, parse_duration, parse_published_date
 
 
 class RSSTests(unittest.TestCase):
@@ -34,6 +34,7 @@ class RSSTests(unittest.TestCase):
     def test_fetch_episodes_from_rss_filters_entries_without_audio(self):
         feed = SimpleNamespace(
             bozo=False,
+            feed={"title": "Example Podcast"},
             entries=[
                 {
                     "id": "guid-1",
@@ -64,6 +65,22 @@ class RSSTests(unittest.TestCase):
         self.assertEqual(episodes[0]["duration_seconds"], 3723)
         self.assertEqual(episodes[0]["published_at"], datetime(2026, 6, 11, 1, 2, 3))
         get_session.return_value.get.assert_called_once_with("https://example.com/feed.xml", timeout=30)
+
+    def test_fetch_podcast_metadata_includes_feed_title(self):
+        feed = SimpleNamespace(bozo=False, feed={"title": "Example Podcast"}, entries=[])
+
+        with (
+            patch("digg_transcriber.http_client.get_http_session") as get_session,
+            patch("feedparser.parse", return_value=feed),
+        ):
+            response = SimpleNamespace(content=b"feed", raise_for_status=lambda: None)
+            get_session.return_value.get.return_value = response
+
+            metadata = fetch_podcast_metadata_from_rss("https://example.com/feed.xml")
+            self.assertEqual(fetch_podcast_title_from_rss("https://example.com/feed.xml"), "Example Podcast")
+
+        self.assertEqual(metadata["title"], "Example Podcast")
+        self.assertEqual(metadata["episodes"], [])
 
     def test_fetch_episodes_from_rss_returns_empty_when_bozo_without_entries(self):
         feed = SimpleNamespace(bozo=True, entries=[])

@@ -128,6 +128,12 @@ def run_job(
             plugin.cleanup(audio_path)
 
 
+def _safe_path_component(value: Optional[str], default: str) -> str:
+    safe = (value or default).replace("/", "_").replace("\\", "_").strip()
+    safe = safe or default
+    return safe[:100]
+
+
 def run_podcast_job(
     rss_url: str,
     cfg: AppConfig,
@@ -144,28 +150,18 @@ def run_podcast_job(
     plugin = PodcastSource(rss_url, episode_guid=episode_guid)
     source_id = plugin.get_id()
     title = plugin.get_title()
+    podcast_title = _safe_path_component(plugin.get_podcast_title(), "untitled-podcast")
+    episode_stem = _safe_path_component(title, "untitled-episode")
     audio_url = plugin.get_audio_url()
 
     if not audio_url:
         logger.error("no audio URL found for podcast episode")
         return "failed"
 
-    safe_title = title.replace("/", "_").replace("\\", "_") if title else "untitled"
-    stem = safe_title[:100]
-
     paths: dict[str, Path] = {}
+    folder = cfg.output_dir / podcast_title / episode_stem
     for fmt in cfg.formats:
-        if cfg.output_mode == OutputMode.BESIDE:
-            paths[fmt] = cfg.output_dir / f"{stem}.{fmt}"
-        elif cfg.output_mode == OutputMode.FLAT:
-            paths[fmt] = cfg.output_dir / f"{stem}.{fmt}"
-        elif cfg.output_mode == OutputMode.ARCHIVE:
-            folder = cfg.output_dir / stem
-            if not folder.exists():
-                folder.mkdir(parents=True, exist_ok=True)
-            paths[fmt] = folder / f"{stem}.{fmt}"
-        else:
-            paths[fmt] = cfg.output_dir / f"{stem}.{fmt}"
+        paths[fmt] = folder / f"{episode_stem}.{fmt}"
 
     if not force and all(p.exists() for p in paths.values()):
         logger.info("skip podcast episode (outputs exist)")

@@ -8,6 +8,8 @@ Universal transcription tool for video, audio, and podcast sources.
 - **Multiple sources**: Video files, local audio files, podcast RSS feeds
 - **Output formats**: vtt, txt, srt, json (configurable)
 - **Watch mode**: Monitor folders for new files with debounce queue
+- **Podcast library tracking**: Keep a local SQLite catalog of podcasts, episodes, and transcript paths
+- **pod-transcriber import**: Import existing transcripts from a pod-transcriber project
 - **Source deletion**: Audio/video/podcast audio deleted after transcription (archive mode) or optionally retained
 - **XDG-compliant**: Follows XDG Base Directory specification for config/cache
 
@@ -41,6 +43,10 @@ digg-transcriber transcribe ~/Videos/recording.mp4
 
 # 5. Transcribe a podcast episode
 digg-transcriber podcast --rss-url https://feeds.buzzsprout.com/example.rss
+
+# 6. Track a podcast library and fetch episodes
+digg-transcriber podcasts add --name "Example Podcast" --rss-url https://feeds.buzzsprout.com/example.rss --fetch
+digg-transcriber episodes list --untranscribed
 ```
 
 ## Commands
@@ -54,6 +60,11 @@ digg-transcriber podcast --rss-url https://feeds.buzzsprout.com/example.rss
 | `prereqs` | Check prerequisites (model cache) |
 | `podcast --rss-url URL` | Transcribe podcast episode from RSS |
 | `podcast --rss-url URL --guid GUID` | Transcribe specific episode |
+| `podcasts add --name NAME --rss-url URL [--fetch]` | Add a podcast to the local library |
+| `podcasts fetch [--rss-url URL]` | Fetch episodes for configured podcasts |
+| `podcasts list` | List configured podcasts |
+| `episodes list [--podcast-id ID] [--untranscribed]` | List tracked episodes |
+| `episodes import-pod-transcriber PATH [--dry-run]` | Import transcripts from a pod-transcriber project |
 | `search QUERY` | Search Podcast Index for feeds |
 
 ## Podcast Sources
@@ -67,6 +78,72 @@ digg-transcriber podcast --rss-url https://feeds.buzzsprout.com/example.rss
 # Transcribe specific episode by GUID
 digg-transcriber podcast --rss-url https://feeds.buzzsprout.com/example.rss --guid abc123
 ```
+
+## Podcast Library
+
+`digg-transcriber` can maintain a local podcast library, similar to pod-transcriber. The library is stored in SQLite under the digg-transcriber cache directory and tracks:
+
+- podcasts and RSS URLs
+- episodes and GUIDs
+- transcript file paths
+- whether an episode still needs transcription
+
+Add and fetch episodes:
+
+```bash
+digg-transcriber podcasts add --name "Example Podcast" --rss-url https://feeds.buzzsprout.com/example.rss --fetch
+digg-transcriber podcasts fetch
+digg-transcriber podcasts list
+```
+
+List episodes:
+
+```bash
+# All tracked episodes
+digg-transcriber episodes list
+
+# Only episodes without a recorded transcript path
+digg-transcriber episodes list --untranscribed
+
+# Episodes from one podcast
+digg-transcriber episodes list --podcast-id 1
+```
+
+When `digg-transcriber podcast --rss-url URL` finishes an episode, it records the episode and transcript path in the library. Future runs skip episodes whose transcript path already exists unless `--force` is used.
+
+Podcast transcripts are saved under:
+
+```text
+~/Transcripts/<podcast-title>/<episode-title>/<episode-title>.<format>
+```
+
+For example:
+
+```text
+~/Transcripts/Example Podcast/Episode One/Episode One.txt
+```
+
+## Importing pod-transcriber Transcripts
+
+To import transcripts from an existing pod-transcriber project, point digg-transcriber at the pod-transcriber project root or its `transcripts/` folder:
+
+```bash
+digg-transcriber episodes import-pod-transcriber /Users/gadoury/github/gadouryd/pod-transcriber
+```
+
+Preview first:
+
+```bash
+digg-transcriber episodes import-pod-transcriber /Users/gadoury/github/gadouryd/pod-transcriber --dry-run
+```
+
+Import only one podcast:
+
+```bash
+digg-transcriber episodes import-pod-transcriber /Users/gadoury/github/gadouryd/pod-transcriber --podcast-title "Example Podcast"
+```
+
+Imported `.txt` transcripts are copied into digg-transcriber's transcript layout and recorded in the local library.
 
 ## Podcast Index Search
 
@@ -102,10 +179,11 @@ Config file: `~/.config/digg/digg-transcriber/config.yaml`
 
 ## Output Modes
 
-- **archive**: Each source gets a folder under output_dir with transcripts; source is moved into the archive folder
+- **archive**: Each local file source gets a folder under output_dir with transcripts; source is moved into the archive folder
 - **beside**: Outputs next to the source (source stays in place)
 - **mirror**: Under output_dir, mirroring input directory tree
-- **flat**: All transcript files directly in output_dir (no per-source folders)
+- **flat**: Local file transcript files directly in output_dir (no per-source folders)
+- Podcast transcripts always use `output_dir/<podcast-title>/<episode-title>/<episode-title>.<format>`
 
 ## Source Types
 

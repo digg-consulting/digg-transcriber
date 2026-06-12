@@ -7,7 +7,7 @@ import logging
 import sys
 from pathlib import Path
 
-from digg_transcriber.config import AppConfig, load_config, write_default_config
+from digg_transcriber.config import AppConfig, config_update_needed, load_config, update_config, write_default_config
 from digg_transcriber.core import discover_sources, run_job, detect_source_type, run_podcast_job
 from digg_transcriber.paths import OutputMode
 from digg_transcriber.podcast_index import search_podcasts, get_podcast_by_id, get_episodes_by_feed_id, get_client
@@ -23,14 +23,37 @@ logger = logging.getLogger("digg-transcriber")
 CLI_NAME = "digg-transcriber"
 
 
+def _confirm(prompt: str) -> bool:
+    if not sys.stdin.isatty():
+        print("Non-interactive mode: leaving config unchanged.")
+        return False
+    reply = input(prompt).strip().lower()
+    return reply in {"y", "yes"}
+
+
 def cmd_init(args: argparse.Namespace) -> int:
     path, created = write_default_config(force=args.force)
     if created:
         print(f"Created config: {path}")
         print("Edit this file to configure your paths and model.")
-    else:
-        print(f"Config already exists: {path}")
-        print("Use --force to overwrite.")
+        return 0
+
+    print(f"Config exists: {path}")
+    missing = config_update_needed(path)
+    if not missing:
+        print("Config is up to date.")
+        return 0
+
+    print("Missing config options:")
+    for item in missing:
+        print(f"  - {item}")
+
+    if args.update or _confirm("Update config with missing options? [y/N] "):
+        update_config(path)
+        print("Updated config with missing options.")
+        return 0
+
+    print("Config left unchanged.")
     return 0
 
 
@@ -198,8 +221,9 @@ def main(argv: list[str] | None = None) -> int:
     sub = parser.add_subparsers(dest="cmd", required=True)
 
     # init
-    p_init = sub.add_parser("init", help="Create default config file")
+    p_init = sub.add_parser("init", help="Create or update default config file")
     p_init.add_argument("--force", action="store_true", help="Overwrite existing")
+    p_init.add_argument("--update", action="store_true", help="Add missing config options")
     p_init.set_defaults(func=cmd_init)
 
     # check

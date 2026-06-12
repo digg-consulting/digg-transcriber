@@ -23,6 +23,14 @@ def bundled_config_example_text() -> str:
     return (pkg_dir / "config.yaml.example").read_text(encoding="utf-8")
 
 
+def _default_watch_extensions() -> list[str]:
+    return [".mp4", ".mov", ".avi", ".mkv", ".mp3", ".m4a", ".wav", ".flac"]
+
+
+def _normalize_extensions(extensions: list[str]) -> list[str]:
+    return [e.lower() if e.startswith(".") else f".{e.lower()}" for e in extensions]
+
+
 def default_config_dict() -> dict:
     return {
         "model": "medium",
@@ -33,7 +41,7 @@ def default_config_dict() -> dict:
         "watch": {
             "paths": [],
             "debounce_seconds": 2,
-            "extensions": [".mp4", ".mov", ".avi", ".mkv", ".mp3", ".m4a", ".wav", ".flac"],
+            "extensions": _default_watch_extensions(),
         },
         "podcast": {
             "podcast_index_api_key": "",
@@ -73,10 +81,9 @@ def load_config(path: Optional[Path] = None) -> AppConfig:
         formats=list(data["formats"]),
         watch_paths=[Path(p).expanduser() for p in watch.get("paths", [])],
         watch_debounce_seconds=float(watch.get("debounce_seconds", 2)),
-        watch_extensions=[
-            e.lower() if e.startswith(".") else f".{e.lower()}"
-            for e in watch.get("extensions", [".mp4", ".mov", ".avi", ".mkv", ".mp3", ".m4a", ".wav", ".flac"])
-        ],
+        watch_extensions=_normalize_extensions(
+            watch.get("extensions", _default_watch_extensions())
+        ),
     )
 
 
@@ -92,4 +99,87 @@ def write_default_config(path: Optional[Path] = None, *, force: bool = False) ->
     return cfg_path, True
 
 
-__all__ = ["AppConfig", "load_config", "write_default_config", "default_config_dict"]
+def _missing_config_paths(
+    defaults: dict,
+    loaded: dict,
+    *,
+    prefix: tuple[str, ...] = (),
+) -> list[str]:
+    missing: list[str] = []
+    for key, default_value in defaults.items():
+        path = ".".join((*prefix, key))
+        if key not in loaded:
+            if isinstance(default_value, dict):
+                missing.extend(_missing_config_paths(default_value, {}, prefix=(*prefix, key)))
+            else:
+                missing.append(path)
+            continue
+        if isinstance(default_value, dict) and isinstance(loaded[key], dict):
+            missing.extend(_missing_config_paths(default_value, loaded[key], prefix=(*prefix, key)))
+    return missing
+
+
+def _missing_config_subtree(defaults: dict, loaded: dict) -> dict:
+    missing: dict = {}
+    for key, default_value in defaults.items():
+        if key not in loaded:
+            missing[key] = default_value
+            continue
+        if isinstance(default_value, dict) and isinstance(loaded[key], dict):
+            nested = _missing_config_subtree(default_value, loaded[key])
+            if nested:
+                missing[key] = nested
+    return missing
+
+
+def _merge_config_data(defaults: dict, loaded: dict) -> dict:
+    merged: dict = {}
+    for key, default_value in defaults.items():
+        if isinstance(default_value, dict) and isinstance(loaded.get(key), dict):
+            merged[key] = _merge_config_data(default_value, loaded[key])
+        elif key in loaded:
+            merged[key] = loaded[key]
+        else:
+            merged[key] = default_value
+    return merged
+
+
+def config_update_needed(path: Optional[Path] = None) -> list[str]:
+    cfg_path = resolve_config_path(path)
+    if not cfg_path.is_file():
+        return []
+    loaded = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(loaded, dict):
+        loaded = {}
+    return _missing_config_paths(default_config_dict(), loaded)
+
+
+def update_config(path: Optional[Path] = None) -> bool:
+    cfg_path = resolve_config_path(path)
+    if not cfg_path.is_file():
+        write_default_config(cfg_path)
+        return True
+
+    loaded = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(loaded, dict):
+        loaded = {}
+
+    missing = _missing_config_subtree(default_config_dict(), loaded)
+    if not missing:
+        return False
+
+    cfg_path.write_text(
+        yaml.safe_dump(_merge_config_data(default_config_dict(), loaded), sort_keys=False),
+        encoding="utf-8",
+    )
+    return True
+
+
+__all__ = [
+    "AppConfig",
+    "load_config",
+    "write_default_config",
+    "default_config_dict",
+    "config_update_needed",
+    "update_config",
+]

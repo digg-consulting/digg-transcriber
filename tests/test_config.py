@@ -4,7 +4,7 @@ from tempfile import TemporaryDirectory
 
 import yaml
 
-from digg_transcriber.config import AppConfig, default_config_dict, load_config, write_default_config
+from digg_transcriber.config import AppConfig, config_update_needed, default_config_dict, load_config, update_config, write_default_config
 from digg_transcriber.paths import OutputMode
 
 
@@ -58,21 +58,63 @@ class ConfigTests(unittest.TestCase):
 
             self.assertEqual(cfg, AppConfig())
 
-    def test_write_default_config_creates_and_overwrites_with_force(self):
+    def test_config_update_needed_finds_missing_nested_options(self):
         with TemporaryDirectory() as tmp:
             config_path = Path(tmp) / "config.yaml"
+            config_path.write_text(
+                yaml.safe_dump({
+                    "model": "tiny",
+                    "watch": {
+                        "paths": ["~/Media"],
+                    },
+                }),
+                encoding="utf-8",
+            )
 
-            returned_path, created = write_default_config(config_path)
-            again_path, created_again = write_default_config(config_path)
-            forced_path, forced = write_default_config(config_path, force=True)
+            self.assertEqual(
+                config_update_needed(config_path),
+                [
+                    "language",
+                    "output_mode",
+                    "output_dir",
+                    "formats",
+                    "watch.debounce_seconds",
+                    "watch.extensions",
+                    "podcast.podcast_index_api_key",
+                    "podcast.podcast_index_api_secret",
+                ],
+            )
 
-            self.assertEqual(returned_path, config_path)
-            self.assertTrue(created)
-            self.assertEqual(again_path, config_path)
-            self.assertFalse(created_again)
-            self.assertEqual(forced_path, config_path)
-            self.assertTrue(forced)
-            self.assertIn("model:", config_path.read_text(encoding="utf-8"))
+    def test_update_config_appends_only_missing_options(self):
+        with TemporaryDirectory() as tmp:
+            config_path = Path(tmp) / "config.yaml"
+            config_path.write_text(
+                yaml.safe_dump({
+                    "model": "tiny",
+                    "watch": {
+                        "paths": ["~/Media"],
+                    },
+                }),
+                encoding="utf-8",
+            )
+
+            self.assertTrue(update_config(config_path))
+            cfg = load_config(config_path)
+
+            self.assertEqual(cfg.model, "tiny")
+            self.assertEqual(cfg.watch_paths, [Path.home() / "Media"])
+            self.assertEqual(cfg.language, "auto")
+            self.assertEqual(cfg.podcast_index_api_key, "")
+            self.assertEqual(cfg.podcast_index_api_secret, "")
+            self.assertEqual(config_update_needed(config_path), [])
+
+    def test_update_config_is_idempotent(self):
+        with TemporaryDirectory() as tmp:
+            config_path = Path(tmp) / "config.yaml"
+            config_path.write_text(yaml.safe_dump(default_config_dict()), encoding="utf-8")
+
+            self.assertFalse(update_config(config_path))
+            self.assertEqual(config_update_needed(config_path), [])
 
 
 if __name__ == "__main__":

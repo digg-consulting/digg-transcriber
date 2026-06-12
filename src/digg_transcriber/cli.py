@@ -199,6 +199,7 @@ def main(argv: list[str] | None = None) -> int:
 
     # init
     p_init = sub.add_parser("init", help="Create default config file")
+    p_init.add_argument("--force", action="store_true", help="Overwrite existing")
     p_init.set_defaults(func=cmd_init)
 
     # check

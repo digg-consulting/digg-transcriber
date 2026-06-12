@@ -1,3 +1,4 @@
+import logging
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -37,11 +38,13 @@ class FakePlugin:
 
 class CoreTests(unittest.TestCase):
     def setUp(self):
+        logging.disable(logging.CRITICAL)
         self.tmp = TemporaryDirectory()
         self.root = Path(self.tmp.name)
         self.plugin = FakePlugin()
 
     def tearDown(self):
+        logging.disable(logging.NOTSET)
         self.tmp.cleanup()
 
     def test_detect_source_type_and_discover_sources(self):

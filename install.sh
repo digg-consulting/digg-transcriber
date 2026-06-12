@@ -92,6 +92,10 @@ cd "${INSTALL_DIR}"
 echo "==> Installing Python dependencies (uv sync)..."
 uv sync
 
+echo "==> Removing stale CLI tool artifacts..."
+rm -rf "${UV_TOOL_DIR}"
+rm -f "${CLI_BIN}"
+
 echo "==> Installing CLI on PATH (uv tool install)..."
 uv tool uninstall "${CLI_NAME}" 2>/dev/null || true
 uv tool install --force -e .
@@ -99,6 +103,12 @@ if [[ ! -x "${CLI_BIN}" ]]; then
     echo "Expected executable at ${CLI_BIN} after uv tool install" >&2
     exit 1
 fi
+
+echo "==> Verifying CLI parser..."
+"${CLI_BIN}" init --help | grep -q -- "--force" || {
+    echo "Error: installed CLI is missing 'init --force'; stale installation detected." >&2
+    exit 1
+}
 
 echo "    ${CLI_BIN}"
 

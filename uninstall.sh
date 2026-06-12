@@ -6,9 +6,12 @@ set -euo pipefail
 
 REPO="digg-consulting/digg-transcriber"
 BRANCH="main"
-INSTALL_DIR="${HOME}/.local/share/digg/digg-transcriber"
+XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-${HOME}/.config}"
+XDG_DATA_HOME="${XDG_DATA_HOME:-${HOME}/.local/share}"
+INSTALL_PARENT="${XDG_DATA_HOME}/digg"
+INSTALL_DIR="${INSTALL_PARENT}/digg-transcriber"
 BIN_DIR="${HOME}/.local/bin"
-CONFIG_DIR="${HOME}/.config/digg/digg-transcriber"
+CONFIG_DIR="${XDG_CONFIG_HOME}/digg/digg-transcriber"
 
 WRAPPER="${BIN_DIR}/digg-transcriber"
 

@@ -129,6 +129,7 @@ class CoreTests(unittest.TestCase):
             patch("digg_transcriber.core._download_audio", return_value=self.root / "episode.mp3"),
             patch("digg_transcriber.core.get_transcriber", return_value=lambda _: TranscriptResult("Podcast", [Segment(0.0, 1.0, "Podcast")])),
             patch("digg_transcriber.core.mark_processed") as mark_processed,
+            patch("digg_transcriber.core.mark_transcription") as mark_transcription,
             patch("digg_transcriber.plugins.podcast.PodcastSource") as podcast_source_cls,
         ):
             podcast_source_cls.return_value.get_id.return_value = "podcast-id"
@@ -142,6 +143,8 @@ class CoreTests(unittest.TestCase):
         self.assertFalse((self.root / "episode.mp3").exists())
         transcript_path = self.root / "out" / "Example _ Podcast" / "Episode _ Title" / "Episode _ Title.txt"
         self.assertEqual(transcript_path.read_text(encoding="utf-8"), "Podcast\n")
+        mark_transcription.assert_called_once()
+        self.assertEqual(mark_transcription.call_args.args[1], transcript_path)
         mark_processed.assert_called_once_with("podcast-id", "podcast", "Episode / Title", transcript_path)
 
 

@@ -8,7 +8,13 @@ from pathlib import Path
 from typing import Optional
 
 from digg_transcriber.config import AppConfig
-from digg_transcriber.database import mark_processed
+from digg_transcriber.database import (
+    add_podcast,
+    get_transcription_by_guid,
+    mark_processed,
+    mark_transcription,
+    upsert_episode,
+)
 from digg_transcriber.paths import OutputMode, output_paths_for, should_skip, move_source_to_archive
 from digg_transcriber.plugins import SOURCE_PLUGINS
 from digg_transcriber.whisper import get_transcriber
@@ -150,13 +156,19 @@ def run_podcast_job(
     plugin = PodcastSource(rss_url, episode_guid=episode_guid)
     source_id = plugin.get_id()
     title = plugin.get_title()
-    podcast_title = _safe_path_component(plugin.get_podcast_title(), "untitled-podcast")
+    raw_podcast_title = plugin.get_podcast_title() or "untitled-podcast"
+    podcast_title = _safe_path_component(raw_podcast_title, "untitled-podcast")
     episode_stem = _safe_path_component(title, "untitled-episode")
     audio_url = plugin.get_audio_url()
 
     if not audio_url:
         logger.error("no audio URL found for podcast episode")
         return "failed"
+
+    existing = get_transcription_by_guid(source_id)
+    if not force and existing and Path(existing["transcript_path"]).exists():
+        logger.info("skip podcast episode (transcript exists)")
+        return "skipped"
 
     paths: dict[str, Path] = {}
     folder = cfg.output_dir / podcast_title / episode_stem
@@ -177,6 +189,17 @@ def run_podcast_job(
         result = transcriber(audio_path)
 
         write_formats(result.text, result.segments, paths, formats=cfg.formats)
+
+        podcast_id = add_podcast(raw_podcast_title, rss_url)
+        description = plugin.get_description()
+        episode_id = upsert_episode(
+            podcast_id,
+            source_id,
+            title or "untitled-episode",
+            description=description if isinstance(description, str) else None,
+            audio_url=audio_url,
+        )
+        mark_transcription(episode_id, paths[cfg.formats[0]])
 
         logger.info(
             "wrote %s",

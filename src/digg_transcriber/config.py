@@ -73,9 +73,10 @@ def load_config(path: Optional[Path] = None) -> AppConfig:
         formats=list(data["formats"]),
         watch_paths=[Path(p).expanduser() for p in watch.get("paths", [])],
         watch_debounce_seconds=float(watch.get("debounce_seconds", 2)),
-        watch_extensions=list(
-            watch.get("extensions", [".mp4", ".mov", ".avi", ".mkv", ".mp3", ".m4a", ".wav", ".flac"])
-        ),
+        watch_extensions=[
+            e.lower() if e.startswith(".") else f".{e.lower()}"
+            for e in watch.get("extensions", [".mp4", ".mov", ".avi", ".mkv", ".mp3", ".m4a", ".wav", ".flac"])
+        ],
     )
 
 

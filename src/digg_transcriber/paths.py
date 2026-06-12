@@ -75,7 +75,7 @@ def should_skip(
 ) -> bool:
     if force:
         return False
-    if not all(paths[fmt].exists() for fmt in formats):
+    if not all(paths[fmt].parent.exists() and paths[fmt].exists() for fmt in formats):
         return False
     if output_mode == OutputMode.ARCHIVE and source_path is not None:
         return archived_source_path(source_path, paths).exists()
